@@ -1,0 +1,13 @@
+# Python cache and build files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+
+# IDE / editor configs
+.vscode/
+.idea/
+.qodo/
