@@ -39,9 +39,7 @@ class NNTrainerUI(QWidget):
         self._add_prediction_tab()
         self._add_evaluation_tab()
 
-    # ==================================================
     # TAB 1: Model Tuning
-    # ==================================================
     def _add_model_tuning_tab(self):
         tuning_tab = QWidget()
         layout = QVBoxLayout(tuning_tab)
@@ -125,17 +123,10 @@ class NNTrainerUI(QWidget):
 
         self.tabs.addTab(tuning_tab, "Model Tuning")
 
-    # ==================================================
     # TAB 2: Prediction
-    # ==================================================
     def _add_prediction_tab(self):
         prediction_tab = QWidget()
         layout = QVBoxLayout(prediction_tab)
-
-        # layout.addWidget(QLabel("Enter values for a single sample (comma separated) or load test set via dataset:"))
-        # self.predict_input = QLineEdit()
-        # self.predict_input.setPlaceholderText("e.g. 0.45, 1.23  --- or leave empty to use x_test from preprocessing")
-        # layout.addWidget(self.predict_input)
 
         self.predict_button = QPushButton("Predict")
         self.predict_button.clicked.connect(self._predict)
@@ -143,14 +134,12 @@ class NNTrainerUI(QWidget):
 
         self.prediction_result = QTextEdit()
         self.prediction_result.setReadOnly(True)
-        self.prediction_result.setFixedHeight(160)
+        self.prediction_result.setFixedHeight(120)
         layout.addWidget(self.prediction_result)
 
         self.tabs.addTab(prediction_tab, "Prediction")
 
-    # ==================================================
     # TAB 3: Evaluation
-    # ==================================================
     def _add_evaluation_tab(self):
         evaluation_tab = QWidget()
         layout = QVBoxLayout(evaluation_tab)
@@ -178,7 +167,7 @@ class NNTrainerUI(QWidget):
         # --- Evaluation text output ---
         self.eval_text = QTextEdit()
         self.eval_text.setReadOnly(True)
-        self.eval_text.setFixedHeight(200)
+        self.eval_text.setFixedHeight(120)
         layout.addWidget(self.eval_text)
 
         self.tabs.addTab(evaluation_tab, "Evaluation")
@@ -195,10 +184,7 @@ class NNTrainerUI(QWidget):
         assert len(features) == 2, "Please select exactly two features."
         assert len(classes) == 2, "Please select exactly two classes."
 
-        return features, classes
-
-        
-        
+        return features, classes  
 
     def _load_dataset(self):
         """
@@ -234,7 +220,7 @@ class NNTrainerUI(QWidget):
             QMessageBox.critical(self, "Error", f"Failed to load dataset:\n{e}")
 
     def _train_model(self):
-        self.eval_text.clear()
+        self.tuning_status.clear()
 
         if self.x_train_scaled is None or self.y_train is None:
             QMessageBox.warning(self, "Error", "Please load a dataset first.")
@@ -300,10 +286,10 @@ class NNTrainerUI(QWidget):
                 return
             
             linear_outputs = np.dot(self.x_test_scaled, self.model_w) + self.model_b
-            preds = np.array([1 if signum(o) == 1 else 0 for o in linear_outputs])
+            self.preds = np.array([1 if signum(o) == 1 else 0 for o in linear_outputs])
 
-            accuracy = np.mean(preds == self.y_test) * 100
-            out_lines = [f"{i}: {a} -> {p}" for i, (p, a) in enumerate(zip(self.le.inverse_transform(preds[:-5]), self.data['Species']))]
+            accuracy = np.mean(self.preds == self.y_test) * 100
+            out_lines = [f"{i}: {a} -> {p}" for i, (p, a) in enumerate(zip(self.le.inverse_transform(self.preds[:-5]), self.data['Species']))]
             
             self.accuracy_label.setText(f"Accuracy: {accuracy:.2f}%")
             self.prediction_result.setPlainText(f"Actual vs Predictions (first {len(out_lines)}):\n" + "\n".join(out_lines))
@@ -319,7 +305,15 @@ class NNTrainerUI(QWidget):
             self.decision_canvas.plot_decision_boundary(self.x_test_scaled, self.y_test, self.features, self.model_w, self.model_b)
             self.eval_text.setText("✅ Decision Boundary plotted successfully.")
         elif selected_plot == "Confusion Matrix":
-            self.eval_text.setText("🧩 Confusion Matrix computation not yet implemented.")
+            self._predict() if not hasattr(self, 'preds') else None
+            conf_matrix, precision, recall, f1 = self.decision_canvas.plot_confusion_matrix(self.preds, self.y_test)
+            self.eval_text.setText(
+                f"✅ Confusion Matrix plotted successfully.\n\n"
+                f"Precision: {precision:.3f}, "
+                f"Recall: {recall:.3f}, "
+                f"F1 Score: {f1:.3f}\n"
+                f"Confusion Matrix:\n{conf_matrix}\n"
+            )
         else:
             self.eval_text.setText("❌ Invalid plot selection.")
     
